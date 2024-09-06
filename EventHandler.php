@@ -14,10 +14,6 @@ final class EventHandler
 
     public MethodReflector $handler;
 
-    public function __construct(
-        public null|string|object $event = null
-    ) {}
-
     public function setEventName(string $eventName): self
     {
         $this->eventName = $eventName;

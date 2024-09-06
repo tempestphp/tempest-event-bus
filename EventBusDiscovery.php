@@ -4,13 +4,11 @@ declare(strict_types=1);
 
 namespace Tempest\EventBus;
 
-use BackedEnum;
 use Tempest\Container\Container;
 use Tempest\Core\Discovery;
 use Tempest\Core\HandlesDiscoveryCache;
 use Tempest\Support\Reflection\ClassReflector;
 use Tempest\Support\Reflection\MethodReflector;
-use UnitEnum;
 
 final readonly class EventBusDiscovery implements Discovery
 {
@@ -18,7 +16,8 @@ final readonly class EventBusDiscovery implements Discovery
 
     public function __construct(
         private EventBusConfig $eventBusConfig,
-    ) {}
+    ) {
+    }
 
     public function discover(ClassReflector $class): void
     {
@@ -29,32 +28,21 @@ final readonly class EventBusDiscovery implements Discovery
                 continue;
             }
 
-            $eventName = match (true) {
-                $eventHandler->event instanceof BackedEnum => $eventHandler->event->value,
-                $eventHandler->event instanceof UnitEnum => $eventHandler->event->name,
-                is_string($eventHandler->event) => $eventHandler->event,
-                default => null,
-            };
+            $parameters = iterator_to_array($method->getParameters());
 
-            if ($eventName === null) {
-                $parameters = iterator_to_array($method->getParameters());
+            if (count($parameters) !== 1) {
+                continue;
+            }
 
-                if ($parameters === []) {
-                    continue;
-                }
+            $type = $parameters[0]->getType();
 
-                $type = $parameters[0]->getType();
-
-                if (! $type->isClass()) {
-                    continue;
-                }
-
-                $eventName = $type->getName();
+            if (! $type->isClass()) {
+                continue;
             }
 
             $this->eventBusConfig->addHandler(
                 eventHandler: $eventHandler,
-                eventName: $eventName,
+                eventName: $type->getName(),
                 reflectionMethod: $method,
             );
         }
