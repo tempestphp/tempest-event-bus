@@ -5,23 +5,23 @@ declare(strict_types=1);
 namespace Tempest\EventBus;
 
 use BackedEnum;
+use Tempest\Container\Container;
 use Tempest\Core\Discovery;
-use Tempest\Core\DiscoveryLocation;
-use Tempest\Core\IsDiscovery;
+use Tempest\Core\HandlesDiscoveryCache;
 use Tempest\Reflection\ClassReflector;
-use Tempest\Reflection\TypeReflector;
+use Tempest\Reflection\MethodReflector;
 use UnitEnum;
 
-final class EventBusDiscovery implements Discovery
+final readonly class EventBusDiscovery implements Discovery
 {
-    use IsDiscovery;
+    use HandlesDiscoveryCache;
 
     public function __construct(
-        private readonly EventBusConfig $eventBusConfig,
+        private EventBusConfig $eventBusConfig,
     ) {
     }
 
-    public function discover(DiscoveryLocation $location, ClassReflector $class): void
+    public function discover(ClassReflector $class): void
     {
         foreach ($class->getPublicMethods() as $method) {
             $eventHandler = $method->getAttribute(EventHandler::class);
@@ -44,28 +44,32 @@ final class EventBusDiscovery implements Discovery
                     continue;
                 }
 
-                /** @var TypeReflector $type */
                 $type = $parameters[0]->getType();
 
-                if (! $type->isClass() && ! $type->isInterface()) {
+                if (! $type->isClass()) {
                     continue;
                 }
 
                 $eventName = $type->getName();
             }
 
-            $this->discoveryItems->add($location, [$eventName, $eventHandler, $method]);
-        }
-    }
-
-    public function apply(): void
-    {
-        foreach ($this->discoveryItems as [$eventName, $eventHandler, $method]) {
-            $this->eventBusConfig->addClassMethodHandler(
-                event: $eventName,
-                handler: $eventHandler,
+            $this->eventBusConfig->addHandler(
+                eventHandler: $eventHandler,
+                eventName: $eventName,
                 reflectionMethod: $method,
             );
         }
+    }
+
+    public function createCachePayload(): string
+    {
+        return serialize($this->eventBusConfig->handlers);
+    }
+
+    public function restoreCachePayload(Container $container, string $payload): void
+    {
+        $handlers = unserialize($payload, ['allowed_classes' => [EventHandler::class, MethodReflector::class]]);
+
+        $this->eventBusConfig->handlers = $handlers;
     }
 }

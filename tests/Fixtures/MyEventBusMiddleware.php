@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace Tempest\EventBus\Tests\Fixtures;
 
 use Tempest\EventBus\EventBusMiddleware;
-use Tempest\EventBus\EventBusMiddlewareCallable;
 
 final class MyEventBusMiddleware implements EventBusMiddleware
 {
-    public static int $hits = 0;
+    public static bool $hit = false;
 
-    public function __invoke(object $event, EventBusMiddlewareCallable $next): void
+    public function __invoke(object $event, callable $next): void
     {
-        self::$hits += 1;
+        self::$hit = true;
 
         $next($event);
     }
